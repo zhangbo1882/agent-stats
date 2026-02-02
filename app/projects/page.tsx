@@ -10,6 +10,18 @@ import { SessionList } from '@/components/lists/SessionList';
 import { PlanList } from '@/components/lists/PlanList';
 import { RefreshCw, Search, FolderOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState, useCallback, useTransition, useMemo } from 'react';
+import dynamic from 'next/dynamic';
+
+// bundle-dynamic-imports: Lazy load SessionViewer and PlanViewer to reduce initial bundle size
+const SessionViewerDynamic = dynamic(() =>
+  import('@/components/debug/SessionViewer').then(mod => ({ default: mod.SessionViewer })),
+  { ssr: false }
+);
+
+const PlanViewerDynamic = dynamic(() =>
+  import('@/components/debug/PlanViewer').then(mod => ({ default: mod.PlanViewer })),
+  { ssr: false }
+);
 
 type SortOption = 'name' | 'sessionCount' | 'lastActive';
 
@@ -27,6 +39,10 @@ export default function ProjectsPage() {
   const [planSearchQuery, setPlanSearchQuery] = useState('');
   const [sessionSortBy, setSessionSortBy] = useState<SortOption>('date');
   const [planSortBy, setPlanSortBy] = useState<SortOption>('created');
+
+  // Viewer states
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const handleRefresh = useCallback(() => {
     startTransition(async () => {
@@ -105,6 +121,7 @@ export default function ProjectsPage() {
   // Extract history data
   const historyData = history as { entries: any[], sessions: any[] } | null;
   const allSessions = historyData?.sessions || [];
+  const historyEntries = historyData?.entries || [];
 
   // Process sessions for expanded view
   const processedSessions = useMemo(() => {
@@ -298,7 +315,7 @@ export default function ProjectsPage() {
               <CardContent className="p-0">
                 <SessionList
                   sessions={processedSessions}
-                  onSessionClick={() => {}}
+                  onSessionClick={setSelectedSessionId}
                 />
               </CardContent>
             </Card>
@@ -340,7 +357,7 @@ export default function ProjectsPage() {
                 <CardDescription>Click on a plan to view details</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <PlanList plans={processedPlans} onPlanClick={() => {}} />
+                <PlanList plans={processedPlans} onPlanClick={setSelectedPlanId} />
               </CardContent>
             </Card>
           </>
@@ -396,6 +413,23 @@ export default function ProjectsPage() {
           />
         )}
       </div>
+
+      {/* Session Viewer Modal */}
+      {selectedSessionId && (
+        <SessionViewerDynamic
+          sessionId={selectedSessionId}
+          entries={historyEntries}
+          onClose={() => setSelectedSessionId(null)}
+        />
+      )}
+
+      {/* Plan Viewer Modal */}
+      {selectedPlanId && (
+        <PlanViewerDynamic
+          plan={plans.find(p => p.id === selectedPlanId)!}
+          onClose={() => setSelectedPlanId(null)}
+        />
+      )}
     </Layout>
   );
 }
