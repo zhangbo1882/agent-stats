@@ -42,7 +42,7 @@ function calculateTrend(current: number, previous: number): { value: number; isP
 }
 
 export default function HomePage() {
-  const { stats, projects, loading, error, refresh } = useClaudeData();
+  const { stats, projects, unifiedModelUsage, loading, error, refresh } = useClaudeData();
   const [isPending, startTransition] = useTransition();
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
@@ -120,12 +120,16 @@ export default function HomePage() {
   const toolTrend = calculateTrend(currentWeekTools, previousWeekTools);
 
   // Prepare model usage data
-  const modelUsageData = Object.entries(stats.modelUsage || {}).reduce((acc, [model, usage]) => {
-    if (usage.inputTokens > 0 || usage.outputTokens > 0) {
+  const modelUsageData = Object.entries(unifiedModelUsage || {}).reduce((acc, [model, usage]) => {
+    // Check if model has any usage (including totalTokens for API data)
+    const hasUsage = usage.inputTokens > 0 || usage.outputTokens > 0 ||
+                     (usage.totalTokens && usage.totalTokens > 0);
+
+    if (hasUsage) {
       acc[model] = usage;
     }
     return acc;
-  }, {} as Record<string, typeof stats.modelUsage[string]>);
+  }, {} as Record<string, typeof unifiedModelUsage[string]>);
 
   return (
     <Layout currentPage="/">

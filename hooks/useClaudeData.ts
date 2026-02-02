@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ClaudeStats, Settings, Plugin, Marketplace, MCPServer, Plan, Project, Skill, AgentTask } from '@/lib/types';
+import { ClaudeStats, Settings, Plugin, Marketplace, MCPServer, Plan, Project, Skill, AgentTask, ModelUsage } from '@/lib/types';
 
 export interface ClaudeData {
   stats: ClaudeStats | null;
@@ -14,6 +14,7 @@ export interface ClaudeData {
   debugLogs: string[];
   skills: Array<Skill & { usageCount?: number; lastUsed?: string }>;
   tasks: AgentTask[];
+  unifiedModelUsage: Record<string, ModelUsage>;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -31,6 +32,7 @@ export function useClaudeData(): ClaudeData {
     debugLogs: [] as string[],
     skills: [] as Array<Skill & { usageCount?: number; lastUsed?: string }>,
     tasks: [] as AgentTask[],
+    unifiedModelUsage: {} as Record<string, ModelUsage>,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

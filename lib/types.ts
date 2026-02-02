@@ -20,6 +20,7 @@ export interface ModelUsage {
   costUSD: number;
   contextWindow: number;
   maxOutputTokens: number;
+  totalTokens?: number;  // For API data that only provides total (e.g., from ZHIPU API)
 }
 
 export interface LongestSession {
@@ -129,6 +130,7 @@ export interface Skill {
   category?: string;
   usageCount?: number;
   lastUsed?: string;
+  source?: 'local' | 'plugin';
 }
 
 export interface TodoItem {
@@ -143,4 +145,57 @@ export interface AgentTask {
   todos: TodoItem[];
   filename: string;
   createdAt?: string;
+}
+
+// API Usage types (from ZHIPU/Z.ai API)
+export interface HourlyUsage {
+  hour: string;
+  callCount: number;
+  tokenCount: number;
+}
+
+export interface ModelUsageStats {
+  model: string;
+  totalCalls: number;
+  totalTokens: number;
+}
+
+export interface ToolUsageStats {
+  toolName: string;
+  usageCount: number;
+}
+
+export interface QuotaLimit {
+  type: string;
+  percentage: number;
+  currentUsage?: number;
+  total?: number;
+  usageDetails?: any;
+}
+
+export interface APIUsageStats {
+  platform: 'ZHIPU' | 'ZAI';
+  modelUsage: HourlyUsage[];
+  totalCalls: number;
+  totalTokens: number;
+  toolUsage: ToolUsageStats[];
+  quotaLimits: QuotaLimit[];
+  lastUpdated: string;
+}
+
+export interface UsageComparison {
+  statsCache: {
+    totalTokens: number;
+    lastDate: string;
+    dailyData: DailyModelTokens[];
+  };
+  apiStats: {
+    totalTokens: number;
+    lastUpdated: string;
+    platform: string;
+  };
+  discrepancy: {
+    missingTokens: number;
+    percentage: number;
+  };
 }
