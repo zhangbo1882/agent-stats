@@ -5,7 +5,6 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 
@@ -35,30 +34,36 @@ function formatTokensLabel(value: number): string {
   return `${formatted}`;
 }
 
+const COLORS = {
+  input: 'hsl(var(--chart-1))',
+  output: 'hsl(var(--chart-2))',
+  cached: 'hsl(var(--chart-3))',
+};
+
 export function ModelUsageChart({ data }: ModelUsageChartProps) {
   const chartData = Object.entries(data).map(([model, usage]: [string, any]) => ({
-    name: model,
-    value: (usage.inputTokens || 0) + (usage.outputTokens || 0) + (usage.cacheReadInputTokens || 0),
+    model,
     input: usage.inputTokens || 0,
     output: usage.outputTokens || 0,
     cached: usage.cacheReadInputTokens || 0,
+    total: (usage.inputTokens || 0) + (usage.outputTokens || 0), // Exclude cached from total
   }));
 
-  const totalTokens = chartData.reduce((sum, item) => sum + item.value, 0);
   const totalInput = chartData.reduce((sum, item) => sum + item.input, 0);
   const totalOutput = chartData.reduce((sum, item) => sum + item.output, 0);
   const totalCached = chartData.reduce((sum, item) => sum + item.cached, 0);
+  const totalTokens = totalInput + totalOutput; // Exclude cached
 
-  const getChartColor = (index: number) => {
-    const colors = [
-      'hsl(var(--chart-1))',
-      'hsl(var(--chart-2))',
-      'hsl(var(--chart-3))',
-      'hsl(var(--chart-4))',
-      'hsl(var(--chart-5))',
-    ];
-    return colors[index % colors.length];
-  };
+  // Prepare pie data for each model
+  const modelsWithPieData = chartData
+    .filter(item => item.total > 0)
+    .map(item => ({
+      model: item.model,
+      pieData: [
+        { name: 'Input', value: item.input, color: COLORS.input },
+        { name: 'Output', value: item.output, color: COLORS.output },
+      ],
+    }));
 
   return (
     <div className="space-y-4">
@@ -78,59 +83,69 @@ export function ModelUsageChart({ data }: ModelUsageChartProps) {
         </div>
       </div>
 
-      {/* Pie chart */}
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, percent }) =>
-              `${name} ${((percent || 0) * 100).toFixed(0)}%`
-            }
-            outerRadius={80}
-            innerRadius={50}
-            paddingAngle={2}
-            dataKey="value"
-          >
-            {chartData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={getChartColor(index)}
-                stroke="hsl(var(--background))"
-                strokeWidth={2}
-              />
-            ))}
-          </Pie>
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'hsl(var(--card))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 500,
-            }}
-            formatter={(value: number, name: string) => {
-              const item = chartData.find(d => d.name === name);
-              const parts = [];
-              if (item?.input) parts.push(`Input: ${formatTokensLabel(item.input)}`);
-              if (item?.output) parts.push(`Output: ${formatTokensLabel(item.output)}`);
-              if (item?.cached) parts.push(`Cached: ${formatTokensLabel(item.cached)}`);
-              parts.push(`Total: ${formatTokensLabel(value || 0)}`);
-              return [parts.join('\n'), name || ''];
-            }}
-          />
-          <Legend
-            wrapperStyle={{ fontSize: '13px', fontWeight: 500 }}
-            iconType="circle"
-          />
-        </PieChart>
-      </ResponsiveContainer>
+      {/* Pie charts - one per model */}
+      {modelsWithPieData.length === 0 ? (
+        <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+          No model usage data
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {modelsWithPieData.map(({ model, pieData }) => {
+            const total = pieData.reduce((sum, item) => sum + item.value, 0);
+            return (
+              <div key={model} className="flex flex-col items-center">
+                <h4 className="text-sm font-medium mb-2">{model}</h4>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name} ${((percent || 0) * 100).toFixed(0)}%`
+                      }
+                      outerRadius={60}
+                      innerRadius={30}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.color}
+                          stroke="hsl(var(--background))"
+                          strokeWidth={2}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                      }}
+                      formatter={(value: number) => [
+                        `${formatTokensLabel(value)}`,
+                        '',
+                      ]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Total: {formatTokensLabel(total)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Total */}
+      {/* Overall total */}
       <div className="text-center text-sm text-muted-foreground">
-        Total: {formatTokensLabel(totalTokens)} tokens
+        Total: {formatTokensLabel(totalTokens)} tokens (excluding cached)
       </div>
     </div>
   );
