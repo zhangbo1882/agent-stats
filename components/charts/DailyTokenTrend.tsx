@@ -87,7 +87,8 @@ export function DailyTokenTrend({ data }: DailyTokenTrendProps) {
             fontSize: '13px',
             fontWeight: 500,
           }}
-          formatter={(value: number, name: string) => {
+          formatter={(value: number | undefined, name: string | undefined) => {
+            if (value === undefined) return ['0', ''];
             const { value: formatted, unit } = formatTokens(value);
             return [
               unit ? `${formatted.toFixed(2)}${unit}` : `${formatted}`,

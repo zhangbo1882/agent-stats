@@ -31,9 +31,9 @@ type StatusFilter = 'all' | 'has_in_progress' | 'completed' | 'pending';
 type TabType = 'sessions' | 'plans' | 'tasks';
 
 interface ProjectDetailPageProps {
-  params: {
+  params: Promise<{
     projectPath: string;
-  };
+  }>;
 }
 
 const tabs = [
@@ -42,20 +42,18 @@ const tabs = [
   { id: 'tasks' as TabType, name: 'Tasks', icon: Bot },
 ];
 
-export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
-  // Unwrap params Promise (Next.js 15)
-  const resolvedParams = use(params);
+function ProjectDetailPageContent({ projectPath }: { projectPath: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { history, plans, projects, loading, error, refresh } = useClaudeData();
   const [isPending, startTransition] = useTransition();
 
   // Get project path from URL params (URL-encoded)
-  const projectPath = decodeURIComponent(resolvedParams.projectPath);
+  const decodedProjectPath = decodeURIComponent(projectPath);
 
   // Find the current project from the projects list to get its display name
   const currentProject = useMemo(() => {
-    return projects.find(p => p.path === projectPath);
+    return projects.find(p => p.path === decodedProjectPath);
   }, [projects, projectPath]);
 
   // Get initial tab from URL query param, default to 'sessions'
@@ -65,8 +63,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Update URL when tab changes
   const handleTabChange = useCallback((tab: TabType) => {
     setActiveTab(tab);
-    router.push(`/projects/${encodeURIComponent(resolvedParams.projectPath)}?tab=${tab}`, { scroll: false });
-  }, [resolvedParams.projectPath, router]);
+    router.push(`/projects/${encodeURIComponent(projectPath)}?tab=${tab}`, { scroll: false });
+  }, [projectPath, router]);
 
   // Sync tab state with URL
   useEffect(() => {
@@ -120,7 +118,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     return allSessions.filter(s => {
       if (!s.project) return false;
       // Normalize both paths for comparison
-      const sessionProjectEnd = s.project.split('/').filter(p => p.length > 0).slice(-2).join('/');
+      const sessionProjectEnd = s.project.split('/').filter((p: string) => p.length > 0).slice(-2).join('/');
       const searchPatterns = [
         projectName,                           // "agent-stats"
         projectName.replace(/-/g, '/'),        // "agent/stats" (handles dashes in name)
@@ -139,12 +137,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     return plans.filter(p => {
       // If plan has exact project field, use it
       if (p.project) {
-        const sessionProjectEnd = p.project.split('/').filter(p => p.length > 0).slice(-2).join('/');
+        const project = p.project; // Type narrowing
+        const sessionProjectEnd = project.split('/').filter((part: string) => part.length > 0).slice(-2).join('/');
         const searchPatterns = [
           projectName,
           projectName.replace(/-/g, '/'),
         ];
-        return searchPatterns.some(pattern => p.project.endsWith('/' + pattern) || sessionProjectEnd === pattern);
+        return searchPatterns.some(pattern => project.endsWith('/' + pattern) || sessionProjectEnd === pattern);
       }
 
       // For plans without project field, use smart matching
@@ -597,4 +596,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       </div>
     </Layout>
   );
+}
+
+// Default export that unwraps the params promise
+export default async function ProjectDetailPage({ params }: ProjectDetailPageProps) {
+  const resolvedParams = await params;
+  return <ProjectDetailPageContent projectPath={resolvedParams.projectPath} />;
 }

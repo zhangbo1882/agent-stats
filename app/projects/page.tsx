@@ -24,6 +24,8 @@ const PlanViewerDynamic = dynamic(() =>
 );
 
 type SortOption = 'name' | 'sessionCount' | 'lastActive';
+type SessionSortOption = 'date' | 'messageCount' | 'duration';
+type PlanSortOption = 'created' | 'title';
 
 type ExpandableSection = 'sessions' | 'plans' | null;
 
@@ -37,8 +39,8 @@ export default function ProjectsPage() {
   // Search states for expanded sections
   const [sessionSearchQuery, setSessionSearchQuery] = useState('');
   const [planSearchQuery, setPlanSearchQuery] = useState('');
-  const [sessionSortBy, setSessionSortBy] = useState<SortOption>('date');
-  const [planSortBy, setPlanSortBy] = useState<SortOption>('created');
+  const [sessionSortBy, setSessionSortBy] = useState<SessionSortOption>('date');
+  const [planSortBy, setPlanSortBy] = useState<PlanSortOption>('created');
 
   // Viewer states
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -297,7 +299,7 @@ export default function ProjectsPage() {
                   <select
                     name="session-sort"
                     value={sessionSortBy}
-                    onChange={(e) => setSessionSortBy(e.target.value as SortOption)}
+                    onChange={(e) => setSessionSortBy(e.target.value as SessionSortOption)}
                     className="px-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     <option value="date">Sort by Time</option>
@@ -342,7 +344,7 @@ export default function ProjectsPage() {
                   <select
                     name="plan-sort"
                     value={planSortBy}
-                    onChange={(e) => setPlanSortBy(e.target.value as SortOption)}
+                    onChange={(e) => setPlanSortBy(e.target.value as PlanSortOption)}
                     className="px-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     <option value="created">Sort by Created Date</option>

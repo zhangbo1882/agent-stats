@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ClaudeDataLoader } from '@/lib/data-loader';
 
 export async function GET(
   request: Request,
@@ -10,18 +11,22 @@ export async function GET(
     const { name, path: pathSegments } = await params;
     const skillName = decodeURIComponent(name);
     const relativeFilePath = pathSegments.map(decodeURIComponent).join('/');
-    const skillsPath = path.join(process.env.HOME || '', '.claude', 'skills');
 
-    // Get the actual path from the symlink
-    const skillLinkPath = path.join(skillsPath, skillName);
+    // Load all skills to find the one we're looking for
+    const dataLoader = new ClaudeDataLoader();
+    const allSkills = await dataLoader.loadSkills();
+    const skill = allSkills.find(s => s.name === skillName);
 
-    if (!fs.existsSync(skillLinkPath)) {
+    if (!skill) {
       return NextResponse.json({ error: 'Skill not found' }, { status: 404 });
     }
 
-    // Resolve the symlink to get the actual path
-    const relativeLinkPath = fs.readlinkSync(skillLinkPath);
-    const skillPath = path.resolve(path.dirname(skillLinkPath), relativeLinkPath);
+    // Use the path from the skill data (works for both local and plugin skills)
+    const skillPath = skill.path;
+
+    if (!fs.existsSync(skillPath)) {
+      return NextResponse.json({ error: 'Skill path not found' }, { status: 404 });
+    }
 
     // Build the full file path
     const fullPath = path.join(skillPath, relativeFilePath);
