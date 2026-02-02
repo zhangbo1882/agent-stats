@@ -22,6 +22,11 @@ const ModelUsageChart = dynamic(() => import('@/components/charts/ModelUsageChar
   ssr: false
 });
 
+const DailyTokenTrend = dynamic(() => import('@/components/charts/DailyTokenTrend').then(mod => ({ default: mod.DailyTokenTrend })), {
+  loading: () => <LoadingSpinner size="md" />,
+  ssr: false
+});
+
 const ProjectChart = dynamic(() => import('@/components/charts/ProjectChart').then(mod => ({ default: mod.ProjectChart })), {
   loading: () => <LoadingSpinner size="md" />,
   ssr: false
@@ -186,7 +191,7 @@ export default function HomePage() {
           <Card>
             <CardHeader>
               <CardTitle>Model Usage Distribution</CardTitle>
-              <CardDescription>Token usage by model</CardDescription>
+              <CardDescription>Token usage by model (input/output/cached)</CardDescription>
             </CardHeader>
             <CardContent>
               {Object.keys(modelUsageData).length > 0 ? (
@@ -201,6 +206,25 @@ export default function HomePage() {
         </div>
 
         {/* Charts Row 2 */}
+        <div className="grid gap-4 md:grid-cols-1">
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Token Trend</CardTitle>
+              <CardDescription>Token usage over the past 30 days</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {stats.dailyModelTokens && stats.dailyModelTokens.length > 0 ? (
+                <DailyTokenTrend data={stats.dailyModelTokens} />
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  No daily token data
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Row 3 */}
         <div className="grid gap-4 md:grid-cols-1">
           <Card>
             <CardHeader>
