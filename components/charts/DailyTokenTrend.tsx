@@ -18,6 +18,25 @@ interface DailyTokenTrendProps {
   }>;
 }
 
+// Dynamic unit formatter based on value magnitude
+function formatTokens(value: number): { value: number; unit: string } {
+  if (value >= 1000000000) {
+    return { value: value / 1000000000, unit: 'B' };
+  }
+  if (value >= 1000000) {
+    return { value: value / 1000000, unit: 'M' };
+  }
+  if (value >= 1000) {
+    return { value: value / 1000, unit: 'K' };
+  }
+  return { value, unit: '' };
+}
+
+function formatTokensLabel(value: number): string {
+  const { value: formatted, unit } = formatTokens(value);
+  return unit ? `${formatted.toFixed(1)}${unit}` : `${formatted}`;
+}
+
 export function DailyTokenTrend({ data }: DailyTokenTrendProps) {
   // Process data to get daily totals with input/output breakdown
   const chartData = data.map((day) => {
@@ -38,6 +57,7 @@ export function DailyTokenTrend({ data }: DailyTokenTrendProps) {
   }).slice(-30); // Last 30 days
 
   const maxTokens = Math.max(...chartData.map(d => d.total));
+  const { unit: yAxisUnit } = formatTokens(maxTokens);
 
   return (
     <ResponsiveContainer width="100%" height={300}>
@@ -54,7 +74,10 @@ export function DailyTokenTrend({ data }: DailyTokenTrendProps) {
         <YAxis
           className="text-xs"
           tick={{ fontSize: 11 }}
-          tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+          tickFormatter={(value) => {
+            const { value: formatted, unit } = formatTokens(value);
+            return unit ? `${formatted.toFixed(1)}${unit}` : `${formatted}`;
+          }}
         />
         <Tooltip
           contentStyle={{
@@ -64,10 +87,13 @@ export function DailyTokenTrend({ data }: DailyTokenTrendProps) {
             fontSize: '13px',
             fontWeight: 500,
           }}
-          formatter={(value: number, name: string) => [
-            `${(value / 1000000).toFixed(2)}M`,
-            name === 'input' ? 'Input' : name === 'output' ? 'Output' : 'Total',
-          ]}
+          formatter={(value: number, name: string) => {
+            const { value: formatted, unit } = formatTokens(value);
+            return [
+              unit ? `${formatted.toFixed(2)}${unit}` : `${formatted}`,
+              name === 'input' ? 'Input' : name === 'output' ? 'Output' : 'Total',
+            ];
+          }}
           labelFormatter={(label) => `Date: ${label}`}
         />
         <Legend wrapperStyle={{ fontSize: '13px', fontWeight: 500 }} />
