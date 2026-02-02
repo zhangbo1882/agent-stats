@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { MessageSquare, Layers, Wrench, Calendar, RefreshCw } from 'lucide-react';
 import { useState, useCallback, useTransition } from 'react';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, formatSessionDuration, formatProjectName } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 
 // bundle-dynamic-imports: Lazy load chart components to reduce initial bundle size
@@ -227,18 +227,38 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               {stats.longestSession ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Session ID</p>
-                  <p className="font-mono text-xs break-all">{stats.longestSession.sessionId}</p>
-                  <div className="flex gap-4 mt-2">
+                <div className="space-y-3">
+                  {stats.longestSession.project && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Project</p>
+                      <p className="font-semibold text-sm">{formatProjectName(stats.longestSession.project)}</p>
+                    </div>
+                  )}
+                  {stats.longestSession.timestamp && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Date</p>
+                      <p className="font-semibold text-sm">
+                        {new Date(stats.longestSession.timestamp).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Messages</p>
                       <p className="font-semibold">{stats.longestSession.messageCount}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Duration</p>
-                      <p className="font-semibold">{Math.round(stats.longestSession.duration / 60)} min</p>
+                      <p className="font-semibold">{formatSessionDuration(stats.longestSession.duration)}</p>
                     </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Session ID</p>
+                    <p className="font-mono text-xs break-all">{stats.longestSession.sessionId}</p>
                   </div>
                 </div>
               ) : (

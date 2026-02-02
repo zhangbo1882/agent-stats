@@ -27,6 +27,7 @@ export interface LongestSession {
   duration: number;
   messageCount: number;
   timestamp: string;
+  project?: string;
 }
 
 export interface HourCounts {

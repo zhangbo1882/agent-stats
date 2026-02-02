@@ -54,3 +54,17 @@ export function formatProjectName(projectPath: string): string {
   const parts = projectPath.split('-');
   return parts[parts.length - 1] || projectPath;
 }
+
+/**
+ * Format session duration (in milliseconds) to "X hr Y min" format
+ */
+export function formatSessionDuration(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0) {
+    return `${hours} hr ${minutes} min`;
+  }
+  return `${minutes} min`;
+}

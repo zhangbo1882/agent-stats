@@ -6,16 +6,27 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ProjectList } from '@/components/lists/ProjectList';
-import { RefreshCw, Search, FolderOpen } from 'lucide-react';
+import { SessionList } from '@/components/lists/SessionList';
+import { PlanList } from '@/components/lists/PlanList';
+import { RefreshCw, Search, FolderOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState, useCallback, useTransition, useMemo } from 'react';
 
 type SortOption = 'name' | 'sessionCount' | 'lastActive';
 
+type ExpandableSection = 'sessions' | 'plans' | null;
+
 export default function ProjectsPage() {
-  const { projects, plans, loading, error, refresh } = useClaudeData();
+  const { projects, plans, history, loading, error, refresh } = useClaudeData();
   const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('sessionCount');
+  const [expandedSection, setExpandedSection] = useState<ExpandableSection>(null);
+
+  // Search states for expanded sections
+  const [sessionSearchQuery, setSessionSearchQuery] = useState('');
+  const [planSearchQuery, setPlanSearchQuery] = useState('');
+  const [sessionSortBy, setSessionSortBy] = useState<SortOption>('date');
+  const [planSortBy, setPlanSortBy] = useState<SortOption>('created');
 
   const handleRefresh = useCallback(() => {
     startTransition(async () => {
@@ -91,6 +102,69 @@ export default function ProjectsPage() {
     return projects.reduce((sum, p) => sum + p.sessionCount, 0);
   }, [projects]);
 
+  // Extract history data
+  const historyData = history as { entries: any[], sessions: any[] } | null;
+  const allSessions = historyData?.sessions || [];
+
+  // Process sessions for expanded view
+  const processedSessions = useMemo(() => {
+    let sessions = [...allSessions];
+
+    if (sessionSearchQuery) {
+      const query = sessionSearchQuery.toLowerCase();
+      sessions = sessions.filter(s =>
+        s.id.toLowerCase().includes(query)
+      );
+    }
+
+    sessions = sessions.sort((a, b) => {
+      switch (sessionSortBy) {
+        case 'date':
+          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        case 'messageCount':
+          return b.messageCount - a.messageCount;
+        case 'duration':
+          return (b.duration || 0) - (a.duration || 0);
+        default:
+          return 0;
+      }
+    });
+
+    return sessions;
+  }, [allSessions, sessionSearchQuery, sessionSortBy]);
+
+  // Process plans for expanded view
+  const processedPlans = useMemo(() => {
+    let filtered = plans;
+
+    if (planSearchQuery) {
+      const query = planSearchQuery.toLowerCase();
+      filtered = filtered.filter(plan =>
+        plan.title.toLowerCase().includes(query) ||
+        plan.summary?.toLowerCase().includes(query) ||
+        plan.filesToModify.some((f: string) => f.toLowerCase().includes(query))
+      );
+    }
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (planSortBy) {
+        case 'created':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'title':
+          return a.title.localeCompare(b.title);
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [plans, planSearchQuery, planSortBy]);
+
+  // Toggle expandable section
+  const toggleSection = useCallback((section: ExpandableSection) => {
+    setExpandedSection(prev => prev === section ? null : section);
+  }, []);
+
   if (loading) {
     return (
       <Layout currentPage="/projects">
@@ -151,15 +225,27 @@ export default function ProjectsPage() {
               <CardTitle className="text-2xl">{projects.length}</CardTitle>
             </CardHeader>
           </Card>
-          <Card>
+          <Card
+            className="cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => toggleSection('sessions')}
+          >
             <CardHeader className="pb-3">
-              <CardDescription>Total Sessions</CardDescription>
+              <div className="flex items-center justify-between">
+                <CardDescription>Total Sessions</CardDescription>
+                {expandedSection === 'sessions' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
               <CardTitle className="text-2xl">{totalSessions}</CardTitle>
             </CardHeader>
           </Card>
-          <Card>
+          <Card
+            className="cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => toggleSection('plans')}
+          >
             <CardHeader className="pb-3">
-              <CardDescription>Total Plans</CardDescription>
+              <div className="flex items-center justify-between">
+                <CardDescription>Total Plans</CardDescription>
+                {expandedSection === 'plans' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
               <CardTitle className="text-2xl">{plans.length}</CardTitle>
             </CardHeader>
           </Card>
@@ -172,6 +258,93 @@ export default function ProjectsPage() {
             </CardHeader>
           </Card>
         </div>
+
+        {/* Expandable Sections */}
+        {expandedSection === 'sessions' && (
+          <>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      name="session-search"
+                      placeholder="Search session ID..."
+                      autoComplete="off"
+                      value={sessionSearchQuery}
+                      onChange={(e) => setSessionSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  <select
+                    name="session-sort"
+                    value={sessionSortBy}
+                    onChange={(e) => setSessionSortBy(e.target.value as SortOption)}
+                    className="px-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="date">Sort by Time</option>
+                    <option value="messageCount">Sort by Message Count</option>
+                    <option value="duration">Sort by Duration</option>
+                  </select>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>All Sessions</CardTitle>
+                <CardDescription>Click on a session to view details</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <SessionList
+                  sessions={processedSessions}
+                  onSessionClick={() => {}}
+                />
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {expandedSection === 'plans' && (
+          <>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      name="plan-search"
+                      placeholder="Search title, summary, or filename..."
+                      autoComplete="off"
+                      value={planSearchQuery}
+                      onChange={(e) => setPlanSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  <select
+                    name="plan-sort"
+                    value={planSortBy}
+                    onChange={(e) => setPlanSortBy(e.target.value as SortOption)}
+                    className="px-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="created">Sort by Created Date</option>
+                    <option value="title">Sort by Title</option>
+                  </select>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>All Plans</CardTitle>
+                <CardDescription>Click on a plan to view details</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <PlanList plans={processedPlans} onPlanClick={() => {}} />
+              </CardContent>
+            </Card>
+          </>
+        )}
 
         {/* Search Bar */}
         <Card>
