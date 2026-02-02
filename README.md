@@ -5,12 +5,12 @@ A dashboard for visualizing and analyzing Claude AI Agent usage statistics.
 ## Features
 
 - 📊 **Overview Statistics** - View key metrics including sessions, messages, and tool calls
-- 📈 **Trend Analysis** - Track daily activity trends and model usage distribution
-- 🗂️ **Project Overview** - View usage statistics by project
+- 📈 **Trend Analysis** - Track daily activity trends and model usage distribution with unified data from multiple sources (cache and API)
+- 🗂️ **Project Overview** - View usage statistics by project with session and plan viewers
 - 🔧 **Plugin Management** - View installed plugins and marketplace
 - 🌐 **MCP Servers** - Manage Model Context Protocol servers
 - 📋 **Plan Tracking** - View and manage plans
-- ⚡ **Skills Browser** - Browse available skills and their usage
+- ⚡ **Skills Browser** - Browse available skills and their usage statistics
 - 🔍 **Debug Logs** - View application debug logs
 - ⚙️ **Settings Management** - Configure environment variables, plugins, permissions with JSON view for other settings
 - 🎨 **Responsive Design** - Support for desktop, tablet, and mobile devices
@@ -92,6 +92,19 @@ npm run test:report
 ## Configuration
 
 The application automatically reads Claude AI data from the `~/.claude` directory. Ensure this directory exists and the application has access permissions.
+
+**Optional API Integration**: To display GLM model usage from ZHIPU/ZAI API, configure the following in your Claude settings (`~/.claude/settings.json`):
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://open.bigmodel.cn/api/paas/v4/",
+    "ANTHROPIC_AUTH_TOKEN": "your-api-token"
+  }
+}
+```
+
+This enables the dashboard to fetch complete 24-hour usage data directly from the API and merge it with cached statistics.
 
 ## License
 
