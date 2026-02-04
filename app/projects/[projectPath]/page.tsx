@@ -45,7 +45,7 @@ const tabs = [
 function ProjectDetailPageContent({ projectPath }: { projectPath: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { history, plans, projects, loading, error, refresh } = useClaudeData();
+  const { history, plans, projects, tasks, loading, error, refresh } = useClaudeData();
   const [isPending, startTransition] = useTransition();
 
   // Get project path from URL params (URL-encoded)
@@ -96,10 +96,10 @@ function ProjectDetailPageContent({ projectPath }: { projectPath: string }) {
   }, [refresh]);
 
   // Extract data from history
-  const historyData = history as { entries: any[], sessions: any[], tasks?: any[] } | null;
+  const historyData = history as { entries: any[], sessions: any[] } | null;
   const historyEntries = historyData?.entries || [];
   const allSessions = historyData?.sessions || [];
-  const allTasks = historyData?.tasks || [];
+  const allTasks = tasks || [];
 
   // Filter data for this project
   // Note: session.project stores the full path (e.g., "/Users/zhangbo/Public/go/github.com/agent-stats")
@@ -201,12 +201,21 @@ function ProjectDetailPageContent({ projectPath }: { projectPath: string }) {
   }, [plans, currentProject]);
 
   const projectTasks = useMemo(() => {
-    // Filter tasks by their associated sessions
+    if (!currentProject) return [];
+
+    // Filter tasks by projectPath field
+    // task.projectPath contains the full path (e.g., "/Users/zhangbo/Public/go/github.com/agent-stats")
+    // currentProject.name contains the display name (e.g., "agent-stats")
+    const projectName = currentProject.name;
+
     return allTasks.filter(task => {
-      const session = allSessions.find(s => s.id === task.sessionId);
-      return projectSessions.some(ps => ps.id === session?.id);
+      if (!task.projectPath) return false;
+
+      // Check if task.projectPath ends with the project name
+      return task.projectPath.endsWith('/' + projectName) ||
+             task.projectPath.endsWith(projectName);
     });
-  }, [allTasks, allSessions, projectSessions]);
+  }, [allTasks, currentProject]);
 
   // Process sessions (search and sort)
   const processedSessions = useMemo(() => {

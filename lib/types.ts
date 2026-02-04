@@ -145,6 +145,7 @@ export interface AgentTask {
   todos: TodoItem[];
   filename: string;
   createdAt?: string;
+  projectPath?: string;
 }
 
 // API Usage types (from ZHIPU/Z.ai API)

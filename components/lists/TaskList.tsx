@@ -1,9 +1,9 @@
 'use client';
 
 import { memo } from 'react';
-import { CheckCircle2, Circle, Loader2, Bot } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Bot, Folder } from 'lucide-react';
 import { AgentTask } from '@/lib/types';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatProjectName } from '@/lib/utils';
 
 interface TaskListProps {
   tasks: AgentTask[];
@@ -66,8 +66,14 @@ export const TaskList = memo(function TaskList({ tasks }: TaskListProps) {
                   </span>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground">
-                Session: {task.sessionId.substring(0, 8)}...
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>Session: {task.sessionId.substring(0, 8)}...</span>
+                {task.projectPath && (
+                  <span className="flex items-center gap-1">
+                    <Folder className="h-3 w-3" />
+                    {formatProjectName(task.projectPath)}
+                  </span>
+                )}
               </div>
             </div>
             <div className="text-sm text-muted-foreground">

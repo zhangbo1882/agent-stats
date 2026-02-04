@@ -360,11 +360,11 @@ export class ClaudeDataLoader {
     }
   }
 
-  async loadTasks(): Promise<AgentTask[]> {
+  async loadTasks(sessions?: any[]): Promise<AgentTask[]> {
     const todosPath = path.join(this.claudePath, 'todos');
 
     try {
-      return readAllTasks(todosPath);
+      return readAllTasks(todosPath, sessions);
     } catch (error) {
       console.error('Error loading tasks:', error);
       return [];
@@ -598,10 +598,13 @@ export class ClaudeDataLoader {
   }
 
   async loadAllData() {
-    const [stats, settings, history, plugins, mcp, plans, projects, debugLogs, skills, skillUsage, tasks, unifiedModelUsage] = await Promise.all([
+    // Load history first (needed for tasks)
+    const history = await this.loadHistory();
+
+    // Load the rest in parallel
+    const [stats, settings, plugins, mcp, plans, projects, debugLogs, skills, skillUsage, unifiedModelUsage] = await Promise.all([
       this.loadStats(),
       this.loadSettings(),
-      this.loadHistory(),
       this.loadPlugins(),
       this.loadMCP(),
       this.loadPlans(),
@@ -609,9 +612,12 @@ export class ClaudeDataLoader {
       this.loadDebugLogs(),
       this.loadSkills(),
       this.loadSkillUsage(),
-      this.loadTasks(),
       this.loadUnifiedModelUsage(),
     ]);
+
+    // Load tasks with sessions data
+    const sessions = history?.sessions || [];
+    const tasks = await this.loadTasks(sessions);
 
     // Merge skill usage into skills
     const skillUsageMap = new Map<string, { usageCount: number; lastUsed: string }>();

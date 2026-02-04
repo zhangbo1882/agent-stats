@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ProjectList } from '@/components/lists/ProjectList';
 import { SessionList } from '@/components/lists/SessionList';
 import { PlanList } from '@/components/lists/PlanList';
+import { TaskList } from '@/components/lists/TaskList';
 import { RefreshCw, Search, FolderOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState, useCallback, useTransition, useMemo } from 'react';
 import dynamic from 'next/dynamic';
@@ -26,11 +27,13 @@ const PlanViewerDynamic = dynamic(() =>
 type SortOption = 'name' | 'sessionCount' | 'lastActive';
 type SessionSortOption = 'date' | 'messageCount' | 'duration';
 type PlanSortOption = 'created' | 'title';
+type TaskSortOption = 'date' | 'taskCount' | 'agentId';
+type StatusFilter = 'all' | 'has_in_progress' | 'completed' | 'pending';
 
-type ExpandableSection = 'sessions' | 'plans' | null;
+type ExpandableSection = 'sessions' | 'plans' | 'tasks' | null;
 
 export default function ProjectsPage() {
-  const { projects, plans, history, loading, error, refresh } = useClaudeData();
+  const { projects, plans, history, tasks, loading, error, refresh } = useClaudeData();
   const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('sessionCount');
@@ -41,6 +44,9 @@ export default function ProjectsPage() {
   const [planSearchQuery, setPlanSearchQuery] = useState('');
   const [sessionSortBy, setSessionSortBy] = useState<SessionSortOption>('date');
   const [planSortBy, setPlanSortBy] = useState<PlanSortOption>('created');
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+  const [taskSortBy, setTaskSortBy] = useState<TaskSortOption>('date');
+  const [taskStatusFilter, setTaskStatusFilter] = useState<StatusFilter>('all');
 
   // Viewer states
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -119,6 +125,7 @@ export default function ProjectsPage() {
   const totalSessions = useMemo(() => {
     return projects.reduce((sum, p) => sum + p.sessionCount, 0);
   }, [projects]);
+  const totalTasks = tasks.length;
 
   // Extract history data
   const historyData = history as { entries: any[], sessions: any[] } | null;
@@ -179,6 +186,54 @@ export default function ProjectsPage() {
     return sorted;
   }, [plans, planSearchQuery, planSortBy]);
 
+  // Process tasks for expanded view
+  const processedTasks = useMemo(() => {
+    let filteredTasks = [...tasks];
+
+    // Apply status filter
+    if (taskStatusFilter === 'has_in_progress') {
+      filteredTasks = filteredTasks.filter(t =>
+        t.todos.some(todo => todo.status === 'in_progress')
+      );
+    } else if (taskStatusFilter === 'completed') {
+      filteredTasks = filteredTasks.filter(t =>
+        t.todos.every(todo => todo.status === 'completed')
+      );
+    } else if (taskStatusFilter === 'pending') {
+      filteredTasks = filteredTasks.filter(t =>
+        t.todos.some(todo => todo.status === 'pending')
+      );
+    }
+
+    // Apply search
+    if (taskSearchQuery) {
+      const query = taskSearchQuery.toLowerCase();
+      filteredTasks = filteredTasks.filter(t =>
+        t.agentId.toLowerCase().includes(query) ||
+        t.sessionId.toLowerCase().includes(query) ||
+        t.todos.some(todo => todo.content.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply sorting
+    filteredTasks = filteredTasks.sort((a, b) => {
+      switch (taskSortBy) {
+        case 'date':
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        case 'taskCount':
+          return b.todos.length - a.todos.length;
+        case 'agentId':
+          return a.agentId.localeCompare(b.agentId);
+        default:
+          return 0;
+      }
+    });
+
+    return filteredTasks;
+  }, [tasks, taskStatusFilter, taskSearchQuery, taskSortBy]);
+
   // Toggle expandable section
   const toggleSection = useCallback((section: ExpandableSection) => {
     setExpandedSection(prev => prev === section ? null : section);
@@ -237,7 +292,7 @@ export default function ProjectsPage() {
         </div>
 
         {/* Summary Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card>
             <CardHeader className="pb-3">
               <CardDescription>Total Projects</CardDescription>
@@ -266,6 +321,18 @@ export default function ProjectsPage() {
                 {expandedSection === 'plans' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </div>
               <CardTitle className="text-2xl">{plans.length}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card
+            className="cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => toggleSection('tasks')}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardDescription>Total Tasks</CardDescription>
+                {expandedSection === 'tasks' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
+              <CardTitle className="text-2xl">{totalTasks}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
@@ -360,6 +427,59 @@ export default function ProjectsPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <PlanList plans={processedPlans} onPlanClick={setSelectedPlanId} />
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {expandedSection === 'tasks' && (
+          <>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      name="task-search"
+                      placeholder="Search task content, Agent ID, or Session ID..."
+                      autoComplete="off"
+                      value={taskSearchQuery}
+                      onChange={(e) => setTaskSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  <select
+                    name="task-status-filter"
+                    value={taskStatusFilter}
+                    onChange={(e) => setTaskStatusFilter(e.target.value as StatusFilter)}
+                    className="px-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="has_in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                  <select
+                    name="task-sort"
+                    value={taskSortBy}
+                    onChange={(e) => setTaskSortBy(e.target.value as TaskSortOption)}
+                    className="px-4 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="date">Sort by Date</option>
+                    <option value="taskCount">Sort by Task Count</option>
+                    <option value="agentId">Sort by Agent ID</option>
+                  </select>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>All Tasks</CardTitle>
+                <CardDescription>Agent tasks with todo items</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <TaskList tasks={processedTasks} />
               </CardContent>
             </Card>
           </>

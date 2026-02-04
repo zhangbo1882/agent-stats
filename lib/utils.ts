@@ -49,8 +49,20 @@ export function formatDuration(ms: number): string {
 }
 
 export function formatProjectName(projectPath: string): string {
-  // The project path is like "-Users-zhangbo-Public-go-github-com-agent-stats"
-  // We want to extract just the project name "agent-stats"
+  // The project path can be:
+  // 1. A Claude project directory name like "-Users-zhangbo-Public-go-github-com-agent-stats"
+  // 2. A full path like "/Users/zhangbo/Public/go/github.com/agent-stats"
+
+  if (!projectPath) return 'Unknown';
+
+  // Handle full paths (start with /)
+  if (projectPath.startsWith('/')) {
+    // Extract the last directory name from the full path
+    const parts = projectPath.split('/').filter(p => p);
+    return parts[parts.length - 1] || projectPath;
+  }
+
+  // Handle Claude project directory names (start with -)
   const parts = projectPath.split('-');
   return parts[parts.length - 1] || projectPath;
 }
