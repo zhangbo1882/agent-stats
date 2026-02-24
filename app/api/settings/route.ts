@@ -8,6 +8,7 @@ import {
   atomicWrite,
 } from '@/lib/settings-utils.server';
 import { deepMerge } from '@/lib/settings-utils';
+import { ProfileManager } from '@/lib/profile-utils.server';
 
 /**
  * GET /api/settings
@@ -111,6 +112,26 @@ export async function POST(request: NextRequest) {
     // Write updated settings atomically
     const content = JSON.stringify(mergedSettings, null, 2);
     await atomicWrite(settingsPath, content);
+
+    // Sync env changes to active profile (if env was updated)
+    if (updates.env) {
+      try {
+        const profileManager = new ProfileManager();
+        const profileStorage = await profileManager.loadProfiles();
+        const activeProfileId = profileStorage.activeProfile;
+        const activeProfile = profileStorage.profiles[activeProfileId];
+
+        if (activeProfile) {
+          // Update the active profile's env to match the current settings
+          await profileManager.updateProfile(activeProfileId, {
+            env: mergedSettings.env || {}
+          });
+        }
+      } catch (profileError) {
+        // Log but don't fail - settings were saved successfully
+        console.warn('Failed to sync env to profile:', profileError);
+      }
+    }
 
     return NextResponse.json({
       success: true,

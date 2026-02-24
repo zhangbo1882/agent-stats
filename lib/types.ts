@@ -58,6 +58,23 @@ export interface Settings {
   [key: string]: any; // Allow arbitrary additional fields
 }
 
+export interface ModelProfile {
+  id: string;                    // Unique ID: 'anthropic', 'zhipu', etc.
+  name: string;                  // Display name
+  description?: string;          // Optional description
+  color?: string;                // UI color (e.g., '#3b82f6')
+  createdAt: string;             // ISO timestamp
+  updatedAt: string;             // ISO timestamp
+
+  // Only model-related environment variables
+  env: Record<string, string | undefined>;
+}
+
+export interface ProfileStorage {
+  activeProfile: string;         // Currently active profile ID
+  profiles: Record<string, ModelProfile>;
+}
+
 export interface HistoryEntry {
   display: string;
   pastedContents: Record<string, any>;

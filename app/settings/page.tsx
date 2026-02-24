@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
 import { Copy, Check, RefreshCw, Plus, Edit, Trash2, Save, Loader2 } from 'lucide-react';
-import { useState, useCallback, useTransition } from 'react';
+import { useState, useCallback, useTransition, useEffect } from 'react';
 import { EnvVariableEditor } from '@/components/settings/EnvVariableEditor';
 import { PluginToggle } from '@/components/settings/PluginToggle';
 import { PermissionsEditor } from '@/components/settings/PermissionsEditor';
+import { ProfileSelector } from '@/components/settings/ProfileSelector';
+import { ProfileManager } from '@/components/settings/ProfileManager';
 import { JsonViewer } from '@/components/ui/JsonViewer';
-import { Settings } from '@/lib/types';
+import { Settings, ProfileStorage } from '@/lib/types';
 import { isSensitiveVar, maskSensitiveValue } from '@/lib/settings-utils';
 import { Modal } from '@/components/ui/Modal';
 import { AlertTriangle } from 'lucide-react';
@@ -49,11 +51,50 @@ export default function SettingsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string>('');
 
+  // Profile states
+  const [profileStorage, setProfileStorage] = useState<ProfileStorage | null>(null);
+  const [profileManagerOpen, setProfileManagerOpen] = useState(false);
+
   const handleRefresh = useCallback(() => {
     startTransition(async () => {
       await refresh();
     });
   }, [refresh]);
+
+  // Load profiles on mount
+  useEffect(() => {
+    const loadProfiles = async () => {
+      try {
+        const response = await fetch('/api/profiles');
+        if (response.ok) {
+          const data = await response.json();
+          setProfileStorage(data);
+        }
+      } catch (error) {
+        console.error('Failed to load profiles:', error);
+      }
+    };
+    loadProfiles();
+  }, []);
+
+  const handleSwitchProfile = async (profileId: string) => {
+    const response = await fetch('/api/profiles/switch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profileId })
+    });
+    if (response.ok) {
+      await refresh();
+      // Reload profile storage
+      const r = await fetch('/api/profiles');
+      if (r.ok) {
+        setProfileStorage(await r.json());
+      }
+    } else {
+      const data = await response.json();
+      alert(`Failed to switch profile: ${data.message || 'Unknown error'}`);
+    }
+  };
 
   const handleCopy = useCallback(async (key: string, value: string) => {
     try {
@@ -254,28 +295,45 @@ export default function SettingsPage() {
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Settings</h1>
-            <p className="text-sm text-muted-foreground mt-1">Claude Configuration and Environment Variables</p>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Settings</h1>
+              <p className="text-sm text-muted-foreground mt-1">Claude Configuration and Environment Variables</p>
+            </div>
+            <div className="flex gap-2 items-center">
+              {saveStatus === 'saving' && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </div>
+              )}
+              <Button
+                onClick={handleRefresh}
+                disabled={isPending || saveStatus === 'saving'}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isPending ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            {saveStatus === 'saving' && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
+
+          {/* Profile Selector */}
+          {profileStorage && (
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="text-sm text-muted-foreground">
+                Switch between different model configuration profiles
               </div>
-            )}
-            <Button
-              onClick={handleRefresh}
-              disabled={isPending || saveStatus === 'saving'}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isPending ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
+              <ProfileSelector
+                storage={profileStorage}
+                onSwitch={handleSwitchProfile}
+                onManage={() => setProfileManagerOpen(true)}
+                disabled={saveStatus === 'saving'}
+              />
+            </div>
+          )}
         </div>
 
         {/* Environment Variables */}
@@ -522,6 +580,22 @@ export default function SettingsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Profile Manager Modal */}
+      {profileStorage && (
+        <ProfileManager
+          isOpen={profileManagerOpen}
+          onClose={() => setProfileManagerOpen(false)}
+          storage={profileStorage}
+          onUpdate={async () => {
+            const r = await fetch('/api/profiles');
+            if (r.ok) {
+              setProfileStorage(await r.json());
+            }
+          }}
+          onSwitch={handleSwitchProfile}
+        />
+      )}
     </Layout>
   );
 }
