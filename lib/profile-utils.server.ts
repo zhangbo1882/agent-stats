@@ -46,7 +46,8 @@ export class ProfileManager {
 
   /**
    * Switch active profile - writes to ~/.claude/settings.json
-   * Only updates env, preserves existing enabledPlugins and permissions
+   * Only updates env from the profile, preserves all other settings
+   * (enabledPlugins, permissions, apiKeyHelper, hooks, etc.)
    */
   async switchProfile(profileId: string): Promise<void> {
     const storage = await this.loadProfiles();
@@ -59,9 +60,9 @@ export class ProfileManager {
     // Backup current settings
     await this.backupCurrentSettings();
 
-    // Read existing settings to preserve plugins and permissions
+    // Read existing settings to preserve all non-env fields
     const claudeSettingsPath = getClaudeSettingsPath();
-    let existingSettings = { enabledPlugins: {}, permissions: {} };
+    let existingSettings: any = {};
     try {
       const content = await fs.readFile(claudeSettingsPath, 'utf-8');
       existingSettings = JSON.parse(content);
@@ -69,11 +70,10 @@ export class ProfileManager {
       // File doesn't exist, use defaults
     }
 
-    // Write profile to Claude's settings.json (only env, preserve plugins/permissions)
+    // Write profile to Claude's settings.json (only update env, preserve everything else)
     const settingsContent = {
-      env: profile.env,
-      enabledPlugins: existingSettings.enabledPlugins || {},
-      permissions: existingSettings.permissions || {}
+      ...existingSettings,  // Preserve all existing settings (apiKeyHelper, hooks, etc.)
+      env: profile.env,     // Only update env from the profile
     };
 
     await atomicWrite(claudeSettingsPath, JSON.stringify(settingsContent, null, 2));
